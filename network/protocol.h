@@ -2,6 +2,7 @@
 
 #include <QString>
 
+#include <QtGlobal>
 #include <cstdint>
 #include <vector>
 #include <variant>
@@ -44,18 +45,18 @@ struct Header
 
 struct CreateRoomBody
 {
-    uint64_t roomId;
+    quint64 roomId;
 };
 
 struct JoinRoomBody
 {
-    uint64_t roomId;
+    quint64 roomId;
     QString name;
 };
 
 struct VoiceMessageBody
 {
-    uint64_t timestamp;
+    quint64 timestamp;
     std::vector<unsigned char> samples;
 };
 
