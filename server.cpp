@@ -189,6 +189,7 @@ Server::Server()
 {
     ///! UDP
     QObject::connect(&d->udpSocket, &QUdpSocket::readyRead, this, [this]() {
+
         while (d->udpSocket.hasPendingDatagrams()) {
             const auto datagram = d->udpSocket.receiveDatagram();
             const auto senderAddress = datagram.senderAddress();
@@ -209,14 +210,19 @@ Server::Server()
             }
 
             auto* room = d->findRoomForUdpClient(senderAddress, senderPort);
+
             if (!room) {
                 continue;
             }
 
             for (const auto& member : room->members) {
+                qCDebug(ServerCat) << member.udpAddress << member.udpPort;
+
                 if (member.udpAddress == senderAddress && member.udpPort == senderPort) {
                     continue;
                 }
+
+                qCDebug(ServerCat) << "Sending:" << datagram.data();
                 d->sendUdpPacket(member, datagram.data());
             }
         }
