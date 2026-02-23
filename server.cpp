@@ -23,6 +23,7 @@ struct Client
     QTcpSocket* tcp;
     QHostAddress udpAddress;
     uint16_t udpPort { 0 };
+    uint32_t id { 0 };
 
     bool hasUdpEndpoint() const { return udpPort != 0; }
 };
@@ -50,6 +51,7 @@ struct Server::Impl
     QUdpSocket udpSocket;
     std::unordered_set<QTcpSocket*> pending;
     std::unordered_map<uint64_t, Room> rooms;
+    uint32_t nextClientId { 1 };
 
     void removeClient(QTcpSocket* tcp)
     {
@@ -151,7 +153,7 @@ struct Server::Impl
             const auto& body = std::get<CreateRoomBody>(packet.body);
             qCDebug(ServerCat) << "Creating room" << body.roomId;
 
-            rooms[body.roomId] = Room { body.roomId, { Client { tcp } } };
+            rooms[body.roomId] = Room { body.roomId, { Client { tcp, {}, 0, nextClientId++ } } };
             pending.erase(tcp);
 
             sendAck(tcp, packet.header.sequenceId, Status::OK);
@@ -168,7 +170,7 @@ struct Server::Impl
                 return;
             }
 
-            it->second.addMember(Client { tcp });
+            it->second.addMember(Client { tcp, {}, 0, nextClientId++ });
             pending.erase(tcp);
 
             sendAck(tcp, packet.header.sequenceId, Status::OK);
@@ -215,15 +217,27 @@ Server::Server()
                 continue;
             }
 
-            for (const auto& member : room->members) {
-                qCDebug(ServerCat) << member.udpAddress << member.udpPort;
+            // Parse packet, stamp with sender's ID, re-serialize
+            QDataStream inStream(datagram.data());
+            auto packet = Packet::fromBytes(inStream);
 
+            if (packet.header.command != Command::VOICE_MSG) {
+                continue;
+            }
+
+            auto& msg = std::get<VoiceMessageBody>(packet.body);
+            msg.senderId = client->id;
+
+            QByteArray outData;
+            QDataStream outStream(&outData, QIODevice::WriteOnly);
+            packet.toBytes(outStream);
+
+            for (const auto& member : room->members) {
                 if (member.udpAddress == senderAddress && member.udpPort == senderPort) {
                     continue;
                 }
 
-                qCDebug(ServerCat) << "Sending:" << datagram.data();
-                d->sendUdpPacket(member, datagram.data());
+                d->sendUdpPacket(member, outData);
             }
         }
     });

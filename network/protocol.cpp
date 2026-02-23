@@ -24,7 +24,7 @@ Body bodyFromBytes(Command command, QDataStream& stream)
     case Command::VOICE_MSG: {
         VoiceMessageBody b;
         uint32_t size {};
-        stream >> b.timestamp >> size;
+        stream >> b.senderId >> b.timestamp >> size;
 
         b.samples.resize(size);
         stream.readRawData(reinterpret_cast<char*>(b.samples.data()),
@@ -52,7 +52,7 @@ void bodyToBytes(const Body& body, QDataStream& stream)
         } else if constexpr (std::is_same_v<T, JoinRoomBody>) {
             stream << b.roomId << b.name;
         } else if constexpr (std::is_same_v<T, VoiceMessageBody>) {
-            stream << b.timestamp << static_cast<uint32_t>(b.samples.size());
+            stream << b.senderId << b.timestamp << static_cast<uint32_t>(b.samples.size());
             stream.writeRawData(reinterpret_cast<const char*>(b.samples.data()),
                                 static_cast<int>(b.samples.size()));
         } else if constexpr (std::is_same_v<T, AckBody>) {

@@ -56,6 +56,7 @@ struct JoinRoomBody
 
 struct VoiceMessageBody
 {
+    uint32_t senderId { 0 };
     quint64 timestamp;
     std::vector<unsigned char> samples;
 };
